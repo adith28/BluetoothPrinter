@@ -150,7 +150,7 @@ public class BluetoothPrinter extends CordovaPlugin {
 				}
 				callbackContext.success(json);
 			} else {
-				callbackContext.error("No Bluetooth Device Found");
+				callbackContext.error("No Bluetooth Device Found, or turn on bluetooth");
 			}
 			//Log.d(LOG_TAG, "Bluetooth Device Found: " + mmDevice.getName());
 		} catch (Exception e) {
