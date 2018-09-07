@@ -522,7 +522,7 @@ public class BluetoothPrinter extends CordovaPlugin {
 			int[] mIntArray = new int[mWidth * mHeight];
 			bitmap.getPixels(mIntArray, 0, mWidth, 0, 0, mWidth, mHeight);
 			bitmap.recycle();
-			byte []data=encodeYUV420SP(mIntArray, mWidth, mHeight);
+			byte[] data=encodeYUV420SP(mIntArray, mWidth, mHeight);
 			byte[] result = new byte[mWidth * mHeight / 8];
 			for (int i = 0; i < mWidth * mHeight; i++) {
 				temp = (byte) ((byte) (data[i] << j) + temp);
