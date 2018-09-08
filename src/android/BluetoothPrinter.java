@@ -426,7 +426,7 @@ public class BluetoothPrinter extends CordovaPlugin {
         }
 
         List<String> bmpHexList = binaryListToHexStringList(list);
-        String commandHexString = "1B5831";
+        String commandHexString = "1D763000";
         String widthHexString = Integer.toHexString(bmpWidth % 8 == 0 ? bmpWidth / 8 : (bmpWidth / 8 + 1));
         if (widthHexString.length() > 2) {
             Log.d(LOG_TAG, "DECODEBITMAP ERROR : width is too large");
