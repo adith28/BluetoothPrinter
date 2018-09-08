@@ -487,134 +487,155 @@ public class BluetoothPrinter extends CordovaPlugin {
         return bt;
     }
 
+   //New implementation
     private static Bitmap resizeImage(Bitmap bitmap, int w, int h) {
         Bitmap BitmapOrg = bitmap;
         int width = BitmapOrg.getWidth();
         int height = BitmapOrg.getHeight();
 
-        if(width>w)
-        {
+        if (width > w) {
             float scaleWidth = ((float) w) / width;
-            float scaleHeight = ((float) h) / height+24;
+            float scaleHeight = ((float) h) / height + 24;
             Matrix matrix = new Matrix();
             matrix.postScale(scaleWidth, scaleWidth);
             Bitmap resizedBitmap = Bitmap.createBitmap(BitmapOrg, 0, 0, width,
                     height, matrix, true);
             return resizedBitmap;
-        }else{
-            Bitmap resizedBitmap = Bitmap.createBitmap(w, height+24, Config.RGB_565);
+        } else {
+            Bitmap resizedBitmap = Bitmap.createBitmap(w, height + 24, Config.RGB_565);
             Canvas canvas = new Canvas(resizedBitmap);
             Paint paint = new Paint();
             canvas.drawColor(Color.WHITE);
-            canvas.drawBitmap(bitmap, (w-width)/2, 0, paint);
+            canvas.drawBitmap(bitmap, (w - width) / 2, 0, paint);
             return resizedBitmap;
         }
     }
 
-    public static byte[] getBitmapData(Bitmap bitmap) {
-		byte temp = 0;
-		int j = 7;
-		int start = 0;
-		if (bitmap != null) {
-			int mWidth = bitmap.getWidth();
-			int mHeight = bitmap.getHeight();
+    private static String hexStr = "0123456789ABCDEF";
 
-			int[] mIntArray = new int[mWidth * mHeight];
-			bitmap.getPixels(mIntArray, 0, mWidth, 0, 0, mWidth, mHeight);
-			bitmap.recycle();
-			byte[] data=encodeYUV420SP(mIntArray, mWidth, mHeight);
-			byte[] result = new byte[mWidth * mHeight / 8];
-			for (int i = 0; i < mWidth * mHeight; i++) {
-				temp = (byte) ((byte) (data[i] << j) + temp);
-				j--;
-				if (j < 0) {
-					j = 7;
-				}
-				if (i % 8 == 7) {
-					result[start++] = temp;
-					temp = 0;
-				}
-			}
-			if (j != 7) {
-				result[start++] = temp;
-			}
+    private static String[] binaryArray = {"0000", "0001", "0010", "0011",
+        "0100", "0101", "0110", "0111", "1000", "1001", "1010", "1011",
+        "1100", "1101", "1110", "1111"};
 
-			int aHeight = 24 - mHeight % 24;
-			int perline = mWidth / 8;
-			byte[] add = new byte[aHeight * perline];
-			byte[] nresult = new byte[mWidth * mHeight / 8 + aHeight * perline];
-			System.arraycopy(result, 0, nresult, 0, result.length);
-			System.arraycopy(add, 0, nresult, result.length, add.length);
+    public static byte[] decodeBitmap(Bitmap bmp) {
+        int bmpWidth = bmp.getWidth();
+        int bmpHeight = bmp.getHeight();
+        List<String> list = new ArrayList<String>(); //binaryString list
+        StringBuffer sb;
+        int bitLen = bmpWidth / 8;
+        int zeroCount = bmpWidth % 8;
+        String zeroStr = "";
+        if (zeroCount > 0) {
+            bitLen = bmpWidth / 8 + 1;
+            for (int i = 0; i < (8 - zeroCount); i++) {
+                zeroStr = zeroStr + "0";
+            }
+        }
 
-			byte[] byteContent = new byte[(mWidth / 8 + 4)
-					* (mHeight + aHeight)];//
-// 			byte[] bytehead = new byte[4];//
-// 			bytehead[0] = (byte) 0x1f;
-// 			bytehead[1] = (byte) 0x10;
-// 			bytehead[2] = (byte) (mWidth / 8);
-// 			bytehead[3] = (byte) 0x00;
-			byte[] bytehead = new byte[5];//p25 bamboo format
-			bytehead[0] = (byte) 0x1B;
-			bytehead[1] = (byte) 0x58;
-			bytehead[2] = (byte) 0x31;			
-			bytehead[3] = (byte) (mWidth / 8);
-			bytehead[4] = (byte) 0x00;
-			
-			for (int index = 0; index < mHeight + aHeight; index++) {
-				System.arraycopy(bytehead, 0, byteContent, index
-						* (perline + 4), 4);
-				System.arraycopy(nresult, index * perline, byteContent, index
-						* (perline + 4) + 4, perline);
-			}
-			return byteContent;
-		}
-		return null;
+        for (int i = 0; i < bmpHeight; i++) {
+            sb = new StringBuffer();
+            for (int j = 0; j < bmpWidth; j++) {
+                int color = bmp.getPixel(j, i);
 
-	}
+                int r = (color >> 16) & 0xff;
+                int g = (color >> 8) & 0xff;
+                int b = color & 0xff;
+                // if color close to white，bit='0', else bit='1'
+                if (r > 160 && g > 160 && b > 160) {
+                    sb.append("0");
+                } else {
+                    sb.append("1");
+                }
+            }
+            if (zeroCount > 0) {
+                sb.append(zeroStr);
+            }
+            list.add(sb.toString());
+        }
 
-	public static byte[] encodeYUV420SP(int[] rgba, int width, int height) {
-		final int frameSize = width * height;
-		byte[] yuv420sp=new byte[frameSize];
-		int[] U, V;
-		U = new int[frameSize];
-		V = new int[frameSize];
-		final int uvwidth = width / 2;
-		int r, g, b, y, u, v;
-		int bits = 8;
-		int index = 0;
-		int f = 0;
-		for (int j = 0; j < height; j++) {
-			for (int i = 0; i < width; i++) {
-				r = (rgba[index] & 0xff000000) >> 24;
-				g = (rgba[index] & 0xff0000) >> 16;
-				b = (rgba[index] & 0xff00) >> 8;
-				// rgb to yuv
-				y = ((66 * r + 129 * g + 25 * b + 128) >> 8) + 16;
-				u = ((-38 * r - 74 * g + 112 * b + 128) >> 8) + 128;
-				v = ((112 * r - 94 * g - 18 * b + 128) >> 8) + 128;
-				// clip y
-				// yuv420sp[index++] = (byte) ((y < 0) ? 0 : ((y > 255) ? 255 :
-				// y));
-				byte temp = (byte) ((y < 0) ? 0 : ((y > 255) ? 255 : y));
-				yuv420sp[index++] = temp > 0 ? (byte) 1 : (byte) 0;
+        List<String> bmpHexList = binaryListToHexStringList(list);
+        String commandHexString = "1D763000";
+        String widthHexString = Integer.toHexString(bmpWidth % 8 == 0 ? bmpWidth / 8 : (bmpWidth / 8 + 1));
+        if (widthHexString.length() > 2) {
+            Log.d(LOG_TAG, "DECODEBITMAP ERROR : width is too large");
+            return null;
+        } else if (widthHexString.length() == 1) {
+            widthHexString = "0" + widthHexString;
+        }
+        widthHexString = widthHexString + "00";
 
-				// {
-				// if (f == 0) {
-				// yuv420sp[index++] = 0;
-				// f = 1;
-				// } else {
-				// yuv420sp[index++] = 1;
-				// f = 0;
-				// }
+        String heightHexString = Integer.toHexString(bmpHeight);
+        if (heightHexString.length() > 2) {
+            Log.d(LOG_TAG, "DECODEBITMAP ERROR : height is too large");
+            return null;
+        } else if (heightHexString.length() == 1) {
+            heightHexString = "0" + heightHexString;
+        }
+        heightHexString = heightHexString + "00";
 
-				// }
+        List<String> commandList = new ArrayList<String>();
+        commandList.add(commandHexString + widthHexString + heightHexString);
+        commandList.addAll(bmpHexList);
 
-			}
+        return hexList2Byte(commandList);
+    }
 
-		}
-		f = 0;
-		return yuv420sp;
-	}
+    public static List<String> binaryListToHexStringList(List<String> list) {
+        List<String> hexList = new ArrayList<String>();
+        for (String binaryStr : list) {
+            StringBuffer sb = new StringBuffer();
+            for (int i = 0; i < binaryStr.length(); i += 8) {
+                String str = binaryStr.substring(i, i + 8);
 
+                String hexString = myBinaryStrToHexString(str);
+                sb.append(hexString);
+            }
+            hexList.add(sb.toString());
+        }
+        return hexList;
+
+    }
+
+    public static String myBinaryStrToHexString(String binaryStr) {
+        String hex = "";
+        String f4 = binaryStr.substring(0, 4);
+        String b4 = binaryStr.substring(4, 8);
+        for (int i = 0; i < binaryArray.length; i++) {
+            if (f4.equals(binaryArray[i])) {
+                hex += hexStr.substring(i, i + 1);
+            }
+        }
+        for (int i = 0; i < binaryArray.length; i++) {
+            if (b4.equals(binaryArray[i])) {
+                hex += hexStr.substring(i, i + 1);
+            }
+        }
+
+        return hex;
+    }
+
+    public static byte[] hexList2Byte(List<String> list) {
+        List<byte[]> commandList = new ArrayList<byte[]>();
+
+        for (String hexStr : list) {
+            commandList.add(hexStringToBytes(hexStr));
+        }
+        byte[] bytes = sysCopy(commandList);
+        return bytes;
+    }
+
+    public static byte[] sysCopy(List<byte[]> srcArrays) {
+        int len = 0;
+        for (byte[] srcArray : srcArrays) {
+            len += srcArray.length;
+        }
+        byte[] destArray = new byte[len];
+        int destLen = 0;
+        for (byte[] srcArray : srcArrays) {
+            System.arraycopy(srcArray, 0, destArray, destLen, srcArray.length);
+            destLen += srcArray.length;
+        }
+        return destArray;
+    }
 
 }
