@@ -511,5 +511,52 @@ public class BluetoothPrinter extends CordovaPlugin {
         }
         return destArray;
     }
+	
+  public static byte[] hexStringToBytes (String s) 
+  {
+    if (null == s)
+      return null;
+      
+    return hexStringToBytes (s, 0, s.length());
+  }
+  /**
+   * @param   hexString   source string (with Hex representation)
+   * @param   offset      starting offset
+   * @param   count       the length
+   * @return  byte array
+   */
+  public static byte[] hexStringToBytes(String hexString, int offset, int count) 
+  {
+    if (null == hexString || offset < 0 || count < 2 || (offset + count) > hexString.length())
+      return null;
+
+    byte[] buffer =  new byte[count >> 1];
+    int stringLength = offset + count;
+    int byteIndex = 0;
+    for(int i = offset; i < stringLength; i++)
+    {
+      char ch = hexString.charAt(i);
+      if (ch == ' ')
+        continue;
+      byte hex = isHexChar(ch);
+      if (hex < 0)
+        return null;
+      int shift = (byteIndex%2 == 1) ? 0 : 4;
+      buffer[byteIndex>>1] |= hex << shift;
+      byteIndex++;
+    }
+    byteIndex = byteIndex>>1;
+    if (byteIndex > 0) {
+      if (byteIndex < buffer.length) {
+        byte[] newBuff = new byte[byteIndex];
+        System.arraycopy(buffer, 0, newBuff, 0, byteIndex);
+        buffer = null;
+        return newBuff;
+      }
+    } else {
+      buffer = null;
+    }
+    return buffer;
+  }	
 
 }
